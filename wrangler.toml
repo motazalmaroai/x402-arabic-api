@@ -1,0 +1,65 @@
+name = "arabic-x402-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "GUARD"
+class_name = "Guard"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Guard"]   # SQLite-backed DOs are available on the Workers Free plan
+
+# Bundle-size/CPU shims (Workers build only; tests use the real packages).
+# Lost-response redeem store (free-tier KV, TTL 3600 s per entry)
+[[kv_namespaces]]
+binding = "REDEEM"
+id = "<SEPOLIA_REDEEM_KV_ID>"  # real id lives in untracked wrangler.local.toml
+
+[alias]
+"zod" = "./src/shims/zod.js"
+"ajv/dist/2020.js" = "./src/shims/ajv.js"
+
+[vars]
+X402_NETWORK = "base-sepolia"    # DEFAULT. Mainnet ("base") only after risk-manager sign-off.
+FACILITATOR = "x402org-testnet"  # keyless, Sepolia only. Mainnet uses "payai" (see [env.mainnet])
+DAILY_CAP = "200"
+PAY_TO = "0x5cb7Cc71c117675ef36102eaed7a5Aa78A29B29a"  # approved by risk manager 2026-10-31 (Sepolia). Empty => paid routes 503.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAINNET (Base, eip155:8453) — PREPARED, NOT DEPLOYED.
+# Separate worker so the Sepolia worker above stays up. Deploy ONLY with: npx wrangler deploy --env mainnet
+# Env sections do NOT inherit bindings/vars, so everything is restated here.
+# Facilitator: PayAI ONLY (keyless, https://facilitator.payai.network). No fallback facilitator, no secrets.
+# Startup guard (src/config.ts paymentConfigError) returns 503 on paid routes unless: network=base,
+# asset=Base USDC, PAY_TO == APPROVED_MAINNET_PAY_TO, FACILITATOR == "payai".
+# ─────────────────────────────────────────────────────────────────────────────
+[env.mainnet]
+name = "arabic-x402-api-base"
+workers_dev = true
+
+[env.mainnet.ai]
+binding = "AI"
+
+[[env.mainnet.durable_objects.bindings]]
+name = "GUARD"
+class_name = "Guard"
+
+[[env.mainnet.migrations]]
+tag = "v1"
+new_sqlite_classes = ["Guard"]
+
+[[env.mainnet.kv_namespaces]]
+binding = "REDEEM"
+id = "<MAINNET_REDEEM_KV_ID>"  # real id lives in untracked wrangler.local.toml
+
+[env.mainnet.vars]
+X402_NETWORK = "base"            # USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (pinned in src/config.ts)
+FACILITATOR = "payai"            # the only facilitator allowed on mainnet
+DAILY_CAP = "200"
+PAY_TO = "0x5cb7Cc71c117675ef36102eaed7a5Aa78A29B29a"  # must equal APPROVED_MAINNET_PAY_TO or paid routes 503

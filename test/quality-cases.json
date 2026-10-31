@@ -1,0 +1,160 @@
+[
+  {
+    "endpoint": "/translate-ar",
+    "input": "تُعدّ الشفافية أحد المبادئ الأساسية التي تقوم عليها تقنية البلوكتشين.",
+    "direction": "ar-en",
+    "reference": "Transparency is one of the core principles on which blockchain technology is built.",
+    "notes": "MSA, formal register. Keep 'blockchain' as one word."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "وش رايك نطلع نتعشى بعد الدوام؟",
+    "direction": "ar-en",
+    "reference": "How about we go out for dinner after work?",
+    "notes": "Saudi dialect: 'وش رايك' = what do you think/how about; 'الدوام' = work hours, not 'permanence'. Don't translate literally."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "والله ما عندي خبر، توني صاحي.",
+    "direction": "ar-en",
+    "reference": "Honestly, I had no idea, I just woke up.",
+    "notes": "Saudi dialect: 'والله' here is an intensifier, not a religious oath; 'توني' = just now. Reference tone stays casual."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "قم بتوصيل محفظتك ثم وقّع على المعاملة لإتمام عملية المبادلة.",
+    "direction": "ar-en",
+    "reference": "Connect your wallet, then sign the transaction to complete the swap.",
+    "notes": "Crypto terms: محفظة=wallet, وقّع=sign, معاملة=transaction, مبادلة=swap. Not 'exchange operation'."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "انخفضت رسوم الغاز على شبكة الإيثيريوم بعد ترقية دينكون.",
+    "direction": "ar-en",
+    "reference": "Gas fees on the Ethereum network dropped after the Dencun upgrade.",
+    "notes": "Proper noun 'Dencun' must stay Dencun; 'رسوم الغاز' = gas fees, never 'natural gas fees'."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "يجب تخزين المفتاح الخاص في مكان آمن وعدم مشاركته مع أي أحد.",
+    "direction": "ar-en",
+    "reference": "The private key must be stored in a safe place and never shared with anyone.",
+    "notes": "Security-critical meaning; 'المفتاح الخاص' = private key. Negation must be preserved."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "أعلنت شركة أرامكو في 12 مارس 2025 عن أرباح بلغت 121.3 مليار دولار.",
+    "direction": "ar-en",
+    "reference": "On March 12, 2025, Aramco announced profits of $121.3 billion.",
+    "notes": "Numbers and dates: 12, 2025 and 121.3 must be exact, decimal point preserved; 'Aramco' not translated; 'مليار' = billion, not million."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "التقى محمد بن سلمان بالسيد عبدالله الفهد في الرياض يوم الأحد.",
+    "direction": "ar-en",
+    "reference": "Mohammed bin Salman met Mr. Abdullah Al-Fahd in Riyadh on Sunday.",
+    "notes": "Names must be transliterated, not translated ('الفهد' is NOT 'the cheetah'; 'سلمان' unchanged)."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "العقد الذكي يحتوي على ثغرة إعادة الدخول، لذلك تم إيقاف المنصة مؤقتاً.",
+    "direction": "ar-en",
+    "reference": "The smart contract has a reentrancy vulnerability, so the platform was temporarily paused.",
+    "notes": "Technical term: 'ثغرة إعادة الدخول' = reentrancy vulnerability (not 're-entry gap')."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "الرصيد ٣٬٥٠٠٫٧٥ USDC، والمطلوب سحب ١٥٠٠ فقط.",
+    "direction": "ar-en",
+    "reference": "The balance is 3,500.75 USDC, and only 1,500 needs to be withdrawn.",
+    "notes": "Arabic-Indic digits with Arabic separators (٬ thousands, ٫ decimal) must convert exactly: 3,500.75 and 1,500. Ticker USDC unchanged."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "Please verify your email address to continue.",
+    "direction": "en-ar",
+    "reference": "يرجى تأكيد عنوان بريدك الإلكتروني للمتابعة.",
+    "notes": "UI string, MSA. Must not drift into dialect."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "The airdrop snapshot will be taken on June 5 at 14:00 UTC.",
+    "direction": "en-ar",
+    "reference": "ستُلتقط لقطة الإيردروب في 5 يونيو الساعة 14:00 بتوقيت UTC.",
+    "notes": "Date/time exact; keep UTC; 'airdrop' commonly kept as إيردروب (or 'التوزيع المجاني' acceptable). Do not convert time zone."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "Never share your seed phrase. Our team will never ask for it.",
+    "direction": "en-ar",
+    "reference": "لا تشارك عبارة الاسترداد أبداً، فريقنا لن يطلبها منك أبداً.",
+    "notes": "Security warning: both negations must survive. 'seed phrase' = عبارة الاسترداد (or العبارة السرية)."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "Vitalik Buterin proposed EIP-1559 to make fees more predictable.",
+    "direction": "en-ar",
+    "reference": "اقترح فيتاليك بوتيرين المقترح EIP-1559 لجعل الرسوم أكثر قابلية للتوقع.",
+    "notes": "Name transliterated, 'EIP-1559' kept as-is, number not reversed or split."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "Staking rewards are distributed every epoch, roughly every 6.4 minutes.",
+    "direction": "en-ar",
+    "reference": "تُوزَّع مكافآت التخزين (Staking) كل حقبة (epoch)، أي كل 6.4 دقائق تقريباً.",
+    "notes": "Decimal 6.4 must stay 6.4 (not 64 or 6,4 ambiguity). Technical terms may keep English in brackets."
+  },
+  {
+    "endpoint": "/summarize-ar",
+    "input": "أعلنت وزارة النقل والخدمات اللوجستية اليوم عن بدء التشغيل التجريبي لخط القطار الجديد الذي يربط بين مدينتي الرياض والقصيم، وذلك بعد أكثر من ثلاث سنوات من أعمال الإنشاء. وأوضحت الوزارة أن الخط يمتد بطول يقارب 400 كيلومتر، ويضم خمس محطات رئيسية، ومن المتوقع أن يختصر زمن الرحلة إلى نحو ساعتين بدلاً من أربع ساعات بالسيارة. وأشارت إلى أن المرحلة التجريبية ستستمر ثلاثة أشهر، تُنقل خلالها البضائع فقط، على أن يبدأ نقل الركاب مطلع العام المقبل بعد استكمال اختبارات السلامة. وأكد المتحدث الرسمي أن المشروع يأتي ضمن خطط تطوير البنية التحتية وتعزيز الربط بين مناطق المملكة، مضيفاً أن أسعار التذاكر ستُعلن قبل بدء التشغيل التجاري بشهر على الأقل.",
+    "reference": "بدأت وزارة النقل التشغيل التجريبي لقطار يربط الرياض بالقصيم بطول نحو 400 كم وخمس محطات، ويختصر الرحلة إلى ساعتين تقريباً. تستمر التجربة ثلاثة أشهر لنقل البضائع فقط، ويبدأ نقل الركاب مطلع العام المقبل بعد اختبارات السلامة، وتُعلن الأسعار قبل التشغيل التجاري بشهر.",
+    "notes": "News. Summary must keep the key numbers exactly (400 km, 5 stations, 2 hours, 3 months) and the goods-first/passengers-later distinction. Fictional example text for testing; must not add facts not in the input."
+  },
+  {
+    "endpoint": "/summarize-ar",
+    "input": "تعتمد شبكات الطبقة الثانية (Layer 2) على فكرة بسيطة: تنفيذ المعاملات خارج الشبكة الرئيسية ثم إرسال ملخص مضغوط عنها إلى الشبكة الرئيسية لتسجيله. ففي حلول الـ Optimistic Rollups يُفترض أن المعاملات صحيحة افتراضياً، وتُمنح فترة اعتراض تصل عادةً إلى سبعة أيام يستطيع خلالها أي طرف تقديم إثبات احتيال إذا اكتشف خطأً. أما الـ ZK Rollups فتُرفق مع كل دفعة إثباتاً رياضياً يُعرف بإثبات المعرفة الصفرية، يتحقق منه العقد الذكي على الشبكة الرئيسية فوراً، مما يلغي الحاجة إلى فترة الانتظار الطويلة عند السحب. لكن توليد هذه الإثباتات يتطلب قدرة حوسبية عالية، وهو ما جعل تطويرها أبطأ وأكثر تعقيداً. وفي الحالتين تبقى الشبكة الرئيسية هي المرجع النهائي للأمان، بينما تتحمل الطبقة الثانية عبء التنفيذ وتقلل الرسوم على المستخدمين.",
+    "reference": "تنفذ شبكات الطبقة الثانية المعاملات خارج الشبكة الرئيسية وترسل ملخصاً عنها إليها، مع بقاء الشبكة الرئيسية مرجع الأمان وانخفاض الرسوم. تفترض الـ Optimistic Rollups صحة المعاملات مع فترة اعتراض تصل إلى سبعة أيام، بينما ترفق الـ ZK Rollups إثباتاً رياضياً يُتحقق منه فوراً لكنه مكلف حوسبياً.",
+    "notes": "Technical. Must keep English technical terms as written (Layer 2, Optimistic Rollups, ZK Rollups), keep '7 days', and must not confuse which rollup type has the challenge period."
+  },
+  {
+    "endpoint": "/summarize-ar",
+    "input": "كثيراً ما يُقال إن العمل عن بُعد قضى على ثقافة المكتب، لكنني أرى أن ما حدث أعمق من ذلك. فالمكتب لم يكن يوماً مجرد مكان للعمل، بل كان مساحة للتعلّم غير المقصود: الموظف الجديد يسمع كيف يتعامل زميله الأقدم مع عميل غاضب، ويرى كيف تُتخذ القرارات في الاجتماعات العابرة عند آلة القهوة. هذه المعرفة الصامتة هي ما نفقده اليوم، لا ساعات الحضور. ومع ذلك، لا أدعو إلى العودة الإجبارية إلى المكاتب، فالمرونة التي اكتسبها الناس مكسب حقيقي لا يصح التفريط فيه. الحل في رأيي أن تصمم الشركات لحظات لقاء مقصودة: أيام حضور مشتركة للفرق، وبرامج إرشاد واضحة، وتوثيق جاد للقرارات بدل الاعتماد على الأحاديث الجانبية. فالمسألة ليست أين نعمل، بل كيف ننقل الخبرة من شخص لآخر.",
+    "reference": "يرى الكاتب أن أكبر خسارة للعمل عن بُعد ليست الحضور بل التعلّم غير المقصود الذي كان يحدث في المكتب. وهو لا يؤيد العودة الإجبارية، بل يقترح أيام حضور مشتركة وبرامج إرشاد وتوثيقاً للقرارات لنقل الخبرة.",
+    "notes": "Opinion. Summary must attribute the view to the writer ('يرى الكاتب') rather than state it as fact, and must keep the nuance that the writer opposes forced return-to-office."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "رقم الطلب 4729 والمبلغ 85.50 ريال.",
+    "direction": "ar-en",
+    "reference": "Order number 4729, amount 85.50 SAR (riyals).",
+    "notes": "ERROR CHECK – number reversal/RTL corruption: output must be 4729 not 9274, 85.50 not 50.85."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "أرسلت لي نورة وأمل الملف.",
+    "direction": "ar-en",
+    "reference": "Noura and Amal sent me the file.",
+    "notes": "ERROR CHECK – name translation: 'نورة' and 'أمل' are names; must not become 'light' or 'hope'."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "We will deploy the contract tomorrow.",
+    "direction": "en-ar",
+    "reference": "سننشر العقد غداً.",
+    "notes": "ERROR CHECK – register mixing: output must be MSA. Fail if it mixes dialect like 'بكره' or 'بنسوي'. 'deploy' = ننشر (not 'نوزع الجنود')."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "لا تقم بإرسال الأموال إلى هذا العنوان.",
+    "direction": "ar-en",
+    "reference": "Do not send funds to this address.",
+    "notes": "ERROR CHECK – dropped negation: output that says 'Send funds to this address' is a critical failure."
+  },
+  {
+    "endpoint": "/translate-ar",
+    "input": "العنوان: 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "direction": "ar-en",
+    "reference": "Address: 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "notes": "ERROR CHECK – wallet addresses, hashes, URLs and code must be copied byte-for-byte (case preserved, no spaces, not reversed by RTL)."
+  }
+]
