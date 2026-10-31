@@ -1,4 +1,4 @@
-# Smithery config for local (stdio) deployment. Not published.
+# Smithery config for local (stdio) deployment. Not published to npm or Smithery.
 startCommand:
   type: stdio
   configSchema:
@@ -9,11 +9,12 @@ startCommand:
         description: Private key of your own Base wallet holding USDC (optional; without it paid tools pay nothing).
       maxPaymentUsdc:
         type: string
-        default: "0.10"
+        default: "0.05"
         description: Per-call spend cap in USDC.
       maxTotalUsdc:
         type: string
         default: "0.50"
         description: Session total spend cap in USDC.
-  commandFunction: |-
-    (config) => ({ command: "npx", args: ["-y", "x402-arabic-mcp"], env: Object.assign({ MAX_PAYMENT_USDC: config.maxPaymentUsdc || "0.10", MAX_TOTAL_USDC: config.maxTotalUsdc || "0.50" }, config.evmPrivateKey ? { EVM_PRIVATE_KEY: config.evmPrivateKey } : {}) })
+  # No launch command: x402-arabic-mcp is NOT published on npm, so `npx -y x402-arabic-mcp` would fail.
+  # Run it from a clone instead: see "Install (run from the repo)" in mcp/README.md
+  # (git clone, npm ci, npm run build, then point your MCP client at node <clone>/mcp/dist/index.js).

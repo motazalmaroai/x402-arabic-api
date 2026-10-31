@@ -17,9 +17,17 @@ export interface Requirement {
   [k: string]: unknown;
 }
 
-/** Parse MAX_PAYMENT_USDC (decimal string) into atomic units (6 decimals). Default 0.10. */
+/** Exact price (atomic USDC) each paid route must quote. Anything else is refused. */
+export const EXPECTED_AMOUNTS: Record<string, string> = {
+  "/translate-ar": "10000",     // 0.01 USDC
+  "/summarize-ar": "20000",     // 0.02 USDC
+  "/dialect-to-msa": "10000",   // 0.01 USDC
+  "/localize-ar-json": "20000", // 0.02 USDC
+};
+
+/** Parse MAX_PAYMENT_USDC (decimal string) into atomic units (6 decimals). Default 0.05. */
 export function capAtomic(raw: string | undefined = process.env.MAX_PAYMENT_USDC): bigint {
-  const s = (raw ?? "").trim() || "0.10";
+  const s = (raw ?? "").trim() || "0.05";
   if (!/^\d+(\.\d{1,6})?$/.test(s)) throw new Error(`Invalid MAX_PAYMENT_USDC: "${s}"`);
   const [i, f = ""] = s.split(".");
   return BigInt(i) * 1_000_000n + BigInt((f + "000000").slice(0, 6));
@@ -31,7 +39,7 @@ export function formatUsdc(atomic: bigint): string {
 }
 
 /** Returns null if acceptable, else a human-readable reason. */
-export function checkRequirement(r: Requirement, cap: bigint): string | null {
+export function checkRequirement(r: Requirement, cap: bigint, expectedAmount?: string): string | null {
   if (r.scheme !== EXPECTED.scheme) return `scheme mismatch: ${r.scheme}`;
   if (r.network !== EXPECTED.network) return `network mismatch: ${r.network}`;
   if (String(r.asset).toLowerCase() !== EXPECTED.asset.toLowerCase()) return `asset mismatch: ${r.asset}`;
@@ -39,13 +47,14 @@ export function checkRequirement(r: Requirement, cap: bigint): string | null {
   const raw = r.amount ?? r.maxAmountRequired;
   if (typeof raw !== "string" || !/^\d+$/.test(raw)) return `invalid amount: ${String(raw)}`;
   const amt = BigInt(raw);
+  if (expectedAmount !== undefined && raw !== expectedAmount) return `amount mismatch: quoted ${formatUsdc(amt)}, expected ${formatUsdc(BigInt(expectedAmount))}`;
   if (amt > cap) return `amount ${formatUsdc(amt)} exceeds cap ${formatUsdc(cap)} (MAX_PAYMENT_USDC)`;
   return null;
 }
 
 /** Keep only requirements that pass every check (used as an x402 client policy). */
-export function filterRequirements<T extends Requirement>(reqs: T[], cap: bigint): T[] {
-  return reqs.filter((r) => checkRequirement(r, cap) === null);
+export function filterRequirements<T extends Requirement>(reqs: T[], cap: bigint, expectedAmount?: string): T[] {
+  return reqs.filter((r) => checkRequirement(r, cap, expectedAmount) === null);
 }
 
 /** Decode the base64 JSON PAYMENT-REQUIRED header (x402 v2). */

@@ -1,6 +1,6 @@
 {
   "name": "x402-arabic-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server (stdio) for the x402 Arabic API: Arabic<->English translation and Arabic summarization, paid per call in USDC on Base with your own wallet.",
   "main": "dist/index.js",
   "scripts": {

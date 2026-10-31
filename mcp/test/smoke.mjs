@@ -7,7 +7,7 @@ await c.connect(new StdioClientTransport({ command: "node", args: ["dist/index.j
 console.log("tools:", (await c.listTools()).tools.map((t) => t.name).join(", "));
 const info = await c.callTool({ name: "api_info", arguments: {} });
 console.log("api_info:", info.content[0].text.slice(0, 120));
-for (const [name, args] of [["translate_ar", { text: "مرحبا" }], ["summarize_ar", { text: "hello world", length: "short" }]]) {
+for (const [name, args] of [["translate_ar", { text: "مرحبا" }], ["translate_ar", { text: "Connect your wallet and pay the gas fee", direction: "en-ar", glossary: "web3" }], ["summarize_ar", { text: "hello world", length: "short" }], ["dialect_to_msa", { text: "وش رايك نروح بكرة؟" }], ["localize_ar_json", { json: { greeting: "Hello, {name}!" } }]]) {
   const r = await c.callTool({ name, arguments: args });
   console.log(name, "isError=", r.isError, "->", r.content[0].text.slice(0, 160));
 }

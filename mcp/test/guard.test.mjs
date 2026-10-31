@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { capAtomic, checkRequirement, filterRequirements, decodePaymentRequired, EXPECTED } from "../dist/guard.js";
+import { capAtomic, checkRequirement, filterRequirements, decodePaymentRequired, EXPECTED, EXPECTED_AMOUNTS } from "../dist/guard.js";
 const good = { scheme: "exact", network: EXPECTED.network, amount: "50000", asset: EXPECTED.asset, payTo: EXPECTED.payTo };
 const hdr = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
-test("cap default 0.10 and parsing", () => {
-  assert.equal(capAtomic(undefined), 100000n); assert.equal(capAtomic("0.05"), 50000n); assert.equal(capAtomic("1"), 1000000n);
+test("cap default 0.05 and parsing", () => {
+  assert.equal(capAtomic(undefined), 50000n); assert.equal(capAtomic(""), 50000n); assert.equal(capAtomic("0.05"), 50000n); assert.equal(capAtomic("1"), 1000000n);
   assert.throws(() => capAtomic("-1")); assert.throws(() => capAtomic("abc"));
 });
 test("accepts matching terms under cap", () => { assert.equal(checkRequirement(good, 100000n), null); assert.equal(checkRequirement({ ...good, payTo: good.payTo.toLowerCase() }, 100000n), null); });
@@ -26,7 +26,7 @@ test("total cap default 0.50 and parsing", () => {
   assert.equal(totalCapAtomic(undefined), 500000n); assert.equal(totalCapAtomic(""), 500000n); assert.equal(totalCapAtomic("1.25"), 1250000n);
   assert.throws(() => totalCapAtomic("x"));
 });
-test("0.05 + 0.07 pass under 0.50", () => {
+test("legacy 0.05 + 0.07 amounts pass under 0.50 total", () => {
   const b = new SessionBudget(totalCapAtomic(undefined));
   assert.equal(b.reserve(50000n), null); b.commit(50000n);
   assert.equal(b.reserve(70000n), null); b.commit(70000n);
@@ -39,4 +39,30 @@ test("refuses once total cap would be exceeded; release frees reservation", () =
   assert.equal(b.reserve(50000n), null); b.release(50000n); assert.equal(b.spent, 50000n);
   assert.equal(b.reserve(50000n), null); b.commit(50000n);
   assert.match(b.check(1n), /above cap/);
+});
+
+test("expected amount per tool", () => {
+  assert.deepEqual(EXPECTED_AMOUNTS, { "/translate-ar": "10000", "/summarize-ar": "20000", "/dialect-to-msa": "10000", "/localize-ar-json": "20000" });
+  const cap = capAtomic(undefined);
+  for (const [path, amount] of Object.entries(EXPECTED_AMOUNTS)) {
+    const r = { ...good, amount };
+    assert.equal(checkRequirement(r, cap, amount), null, path);
+    // network, asset and payTo are still enforced alongside the amount
+    assert.match(checkRequirement({ ...r, network: "eip155:84532" }, cap, amount), /network/);
+    assert.match(checkRequirement({ ...r, asset: "0x0000000000000000000000000000000000000001" }, cap, amount), /asset/);
+    assert.match(checkRequirement({ ...r, payTo: "0x000000000000000000000000000000000000dEaD" }, cap, amount), /payTo/);
+  }
+});
+test("refuses a different amount even under the cap", () => {
+  const cap = capAtomic(undefined);
+  assert.match(checkRequirement({ ...good, amount: "20000" }, cap, EXPECTED_AMOUNTS["/translate-ar"]), /amount mismatch/);
+  assert.match(checkRequirement({ ...good, amount: "10000" }, cap, EXPECTED_AMOUNTS["/summarize-ar"]), /amount mismatch/);
+  assert.match(checkRequirement({ ...good, amount: "9999" }, cap, EXPECTED_AMOUNTS["/dialect-to-msa"]), /amount mismatch/);
+  const pr = decodePaymentRequired(hdr({ x402Version: 2, accepts: [{ ...good, amount: "50000" }, { ...good, amount: "20000" }] }));
+  assert.deepEqual(filterRequirements(pr.accepts, cap, "20000"), [{ ...good, amount: "20000" }]);
+});
+test("old 0.05/0.07 prices are refused by the new default cap or expected amount", () => {
+  const cap = capAtomic(undefined);
+  assert.match(checkRequirement({ ...good, amount: "70000" }, cap), /exceeds cap/);
+  assert.match(checkRequirement({ ...good, amount: "50000" }, cap, "10000"), /amount mismatch/);
 });

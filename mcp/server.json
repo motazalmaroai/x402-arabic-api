@@ -8,12 +8,12 @@
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "x402-arabic-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },
@@ -27,11 +27,11 @@
         },
         {
           "name": "MAX_PAYMENT_USDC",
-          "description": "Per-call spend cap in USDC (default 0.10).",
+          "description": "Per-call spend cap in USDC (default 0.05).",
           "isRequired": false,
           "isSecret": false,
           "format": "string",
-          "default": "0.10"
+          "default": "0.05"
         },
         {
           "name": "MAX_TOTAL_USDC",
