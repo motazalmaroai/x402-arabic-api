@@ -1,0 +1,19 @@
+# Smithery config for local (stdio) deployment. Not published.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      evmPrivateKey:
+        type: string
+        description: Private key of your own Base wallet holding USDC (optional; without it paid tools pay nothing).
+      maxPaymentUsdc:
+        type: string
+        default: "0.10"
+        description: Per-call spend cap in USDC.
+      maxTotalUsdc:
+        type: string
+        default: "0.50"
+        description: Session total spend cap in USDC.
+  commandFunction: |-
+    (config) => ({ command: "npx", args: ["-y", "x402-arabic-mcp"], env: Object.assign({ MAX_PAYMENT_USDC: config.maxPaymentUsdc || "0.10", MAX_TOTAL_USDC: config.maxTotalUsdc || "0.50" }, config.evmPrivateKey ? { EVM_PRIVATE_KEY: config.evmPrivateKey } : {}) })

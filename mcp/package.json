@@ -1,0 +1,50 @@
+{
+  "name": "x402-arabic-mcp",
+  "version": "0.1.0",
+  "description": "MCP server (stdio) for the x402 Arabic API: Arabic<->English translation and Arabic summarization, paid per call in USDC on Base with your own wallet.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "test": "npm run build && node --test test/guard.test.mjs",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "x402",
+    "arabic",
+    "translation",
+    "summarization",
+    "base",
+    "usdc"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@x402/evm": "2.29.0",
+    "@x402/fetch": "2.29.0",
+    "viem": "2.57.13",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  },
+  "mcpName": "io.github.motazalmaroai/x402-arabic-api",
+  "bin": {
+    "x402-arabic-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/motazalmaroai/x402-arabic-api.git",
+    "directory": "mcp"
+  }
+}

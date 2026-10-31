@@ -1,0 +1,47 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.motazalmaroai/x402-arabic-api",
+  "title": "x402 Arabic API",
+  "description": "Arabic<->English translation and Arabic summarization, paid per call via x402 (USDC on Base).",
+  "repository": {
+    "url": "https://github.com/motazalmaroai/x402-arabic-api",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "x402-arabic-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "EVM_PRIVATE_KEY",
+          "description": "Private key of YOUR OWN Base wallet holding USDC. Optional: without it, paid tools only return the price and pay nothing.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MAX_PAYMENT_USDC",
+          "description": "Per-call spend cap in USDC (default 0.10).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "0.10"
+        },
+        {
+          "name": "MAX_TOTAL_USDC",
+          "description": "Session cap in USDC: total spend per server process (default 0.50).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "0.50"
+        }
+      ]
+    }
+  ]
+}
