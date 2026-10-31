@@ -9,10 +9,11 @@ export function buildOpenApi(env: Env, origin: string) {
     "429": "Rate limited (per IP or per payer).", "503": "Daily capacity reached or payments not configured. Not charged.", ...extra,
   }).map(([k, d]) => [k, { description: d, content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } }]));
   const pay = (amount: string) => ({ scheme: "exact", network: net.caip2, asset: net.usdc, amount, decimals: 6, usd: Number(amount) / 1e6 });
-  const xpi = (amount: string) => ({ protocols: ["x402"], price: { mode: "fixed", currency: "USD", amount: (Number(amount) / 1e6).toFixed(2) } });
+  const xpi = (amount: string) => ({ protocols: [{ x402: {} }], price: { mode: "fixed", currency: "USD", amount: (Number(amount) / 1e6).toFixed(2) } });
   return {
     openapi: "3.1.0",
-    info: { title: "x402 Arabic API", version: "1.0.0", description: "Arabic<->English translation and Arabic summarization, paid per request with x402 (USDC). Lost response: resend the IDENTICAL payment header to the same endpoint within 1 hour to get the same stored response (200, no second charge); any other payment reuse returns 409." },
+    info: { title: "x402 Arabic API", version: "1.0.0", description: "Arabic<->English translation and Arabic summarization, paid per request with x402 (USDC). Lost response: resend the IDENTICAL payment header to the same endpoint within 1 hour to get the same stored response (200, no second charge); any other payment reuse returns 409.",
+      "x-guidance": `POST JSON to /translate-ar ({text, direction?}) or /summarize-ar ({text, length?}). The first request returns 402 with x402 v2 payment requirements (exact scheme, USDC) in the PAYMENT-REQUIRED header; sign them and resend the same request with the PAYMENT-SIGNATURE header. Max ${MAX_INPUT_CHARS} chars of text, 16 KiB body. /health, /openapi.json and /.well-known/x402 are free.` },
     servers: [{ url: origin }],
     paths: {
       "/translate-ar": { post: {
@@ -29,9 +30,9 @@ export function buildOpenApi(env: Env, origin: string) {
         requestBody: { required: true, content: { "application/json": { schema: summarizeInput, example: examples.summarize.req } } },
         responses: { "200": { description: "Summary", content: { "application/json": { schema: summarizeOutput, example: examples.summarize.res } } }, ...errs() },
       } },
-      "/health": { get: { operationId: "health", description: "Use when: checking liveness. Free.", responses: { "200": { description: "OK", content: { "application/json": { schema: { type: "object" } } } } } } },
-      "/openapi.json": { get: { operationId: "openapi", description: "Use when: discovering this API's contract. Free.", responses: { "200": { description: "This document", content: { "application/json": { schema: { type: "object" } } } } } } },
-      "/.well-known/x402": { get: { operationId: "x402Manifest", description: "Use when: listing paid resources and prices. Free, informational.", responses: { "200": { description: "Manifest", content: { "application/json": { schema: { type: "object" } } } } } } },
+      "/health": { get: { operationId: "health", security: [], description: "Use when: checking liveness. Free.", responses: { "200": { description: "OK", content: { "application/json": { schema: { type: "object" } } } } } } },
+      "/openapi.json": { get: { operationId: "openapi", security: [], description: "Use when: discovering this API's contract. Free.", responses: { "200": { description: "This document", content: { "application/json": { schema: { type: "object" } } } } } } },
+      "/.well-known/x402": { get: { operationId: "x402Manifest", security: [], description: "Use when: listing paid resources and prices. Free, informational.", responses: { "200": { description: "Manifest", content: { "application/json": { schema: { type: "object" } } } } } } },
     },
     components: { schemas: { Error: errorSchema } },
   };
