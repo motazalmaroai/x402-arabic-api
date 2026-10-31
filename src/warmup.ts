@@ -1,7 +1,7 @@
 import { createApp, buildPayment } from "./app";
 import { MemoryGuard } from "./memguard";
 import { SafeFacilitator, TRANSFER_TOPIC } from "./settlement";
-import { resolveNetwork } from "./config";
+import { resolveNetwork, PRICES } from "./config";
 import type { Env } from "./config";
 
 /**
@@ -25,7 +25,7 @@ export function warmUp(base: Env): Promise<number[] | undefined> {
   const pad = (a: string) => "0x" + a.toLowerCase().slice(2).padStart(64, "0");
   // Fake RPC: a receipt that matches the warm-up payment (exercises the full receipt-check code path, no I/O).
   const fakeFetch = (async () => new Response(JSON.stringify({ result: { transactionHash: "0x" + "00".repeat(32), status: "0x1", logs: [
-    { address: net.usdc, topics: [TRANSFER_TOPIC, pad("0x" + "22".repeat(20)), pad(env.PAY_TO)], data: "0x" + BigInt(50000).toString(16).padStart(64, "0") }] } }))) as any;
+    { address: net.usdc, topics: [TRANSFER_TOPIC, pad("0x" + "22".repeat(20)), pad(env.PAY_TO)], data: "0x" + BigInt(PRICES["/translate-ar"]).toString(16).padStart(64, "0") }] } }))) as any;
   const safe = new SafeFacilitator({ name: "warmup", client: fac as any, guard: () => guard, rpcs: ["https://rpc.invalid"], asset: net.usdc, payTo: env.PAY_TO, fetch: fakeFetch, receiptDelayMs: 0, log: () => {} });
   let pay: ReturnType<typeof buildPayment> | undefined;
   const app = createApp({ guard: () => guard, payment: (e) => (pay ??= buildPayment(e, safe)) });

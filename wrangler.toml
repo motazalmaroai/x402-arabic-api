@@ -29,6 +29,9 @@ id = "<SEPOLIA_REDEEM_KV_ID>"  # real id lives in untracked wrangler.local.toml
 X402_NETWORK = "base-sepolia"    # DEFAULT. Mainnet ("base") only after risk-manager sign-off.
 FACILITATOR = "x402org-testnet"  # keyless, Sepolia only. Mainnet uses "payai" (see [env.mainnet])
 DAILY_CAP = "200"
+NEURON_BUDGET = "9000"     # shared Workers AI daily budget (Free plan = 10k)
+TRIAL_DAILY_CAP = "100"    # free /try/translate-ar global cap; "0" disables
+SETTLE_STOP = "900"        # paid routes 503 once settlements reach this; raise to resume, "0" disables
 PAY_TO = "0x5cb7Cc71c117675ef36102eaed7a5Aa78A29B29a"  # approved by risk manager 2026-10-31 (Sepolia). Empty => paid routes 503.
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,4 +65,7 @@ id = "<MAINNET_REDEEM_KV_ID>"  # real id lives in untracked wrangler.local.toml
 X402_NETWORK = "base"            # USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (pinned in src/config.ts)
 FACILITATOR = "payai"            # the only facilitator allowed on mainnet
 DAILY_CAP = "200"
+NEURON_BUDGET = "9000"     # shared Workers AI daily budget (Free plan = 10k)
+TRIAL_DAILY_CAP = "100"    # free /try/translate-ar global cap; "0" disables
+SETTLE_STOP = "900"        # paid routes 503 once settlements reach this; raise to resume, "0" disables
 PAY_TO = "0x5cb7Cc71c117675ef36102eaed7a5Aa78A29B29a"  # must equal APPROVED_MAINNET_PAY_TO or paid routes 503

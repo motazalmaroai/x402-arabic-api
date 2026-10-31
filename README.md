@@ -6,8 +6,13 @@ Pay-per-call Arabic ⇄ English translation and Arabic summarization for AI agen
 
 | Endpoint | Price | Use when |
 |---|---|---|
-| `POST /translate-ar` | **0.05 USDC** | Use when: an agent needs accurate MSA Arabic⇄English translation that preserves wallet addresses, numbers, URLs and code verbatim; direction is auto-detected or set via `direction` (`ar-en`/`en-ar`). |
-| `POST /summarize-ar` | **0.07 USDC** | Use when: an agent needs a faithful Arabic summary (`length`: `short`/`medium`/`long`) of Arabic or English text up to 4,000 characters. |
+| `POST /translate-ar` | **0.01 USDC** (10000) | Use when: an agent needs Arabic⇄English translation (MSA or Saudi/Gulf dialect input) that keeps 0x addresses, numbers, URLs and code verbatim; `direction` `auto`/`ar-en`/`en-ar`; optional `glossary: "web3"` enforces a fixed Arabic Web3 terminology list (reviewed by Nouf 2026-10-31). |
+| `POST /summarize-ar` | **0.02 USDC** (20000) | Use when: an agent needs a faithful Arabic summary (`length`: `short`/`medium`/`long`) of Arabic or English text up to 4,000 characters. |
+| `POST /dialect-to-msa` | **0.01 USDC** (10000) | Use when: an agent needs Saudi/Gulf dialect rewritten as Modern Standard Arabic (`direction: "dialect-msa"`, default) or MSA rewritten as natural Saudi/Gulf dialect (`"msa-dialect"`); `dialect`: `saudi`/`gulf`. |
+| `POST /localize-ar-json` | **0.02 USDC** (20000) | Use when: an agent needs an i18n JSON object localized to Arabic. Keys unchanged; `{name}`, `{{count}}`, `%s`/`%d`, ICU plural/select and HTML tags validated per string, retried once, else the source string is kept (reported in `checks.fallbackKeys`; more than 20% fallback => 502, not charged). Max 200 strings / 8,000 chars. |
+| `POST /try/translate-ar` | free | Use when: trying translation quality before paying. ≤200 chars, 5 calls per IP per UTC day, ~100 per day globally; 429 above the limits. |
+
+Arabic-native, Gulf-dialect aware. Every endpoint keeps 0x addresses, numbers, URLs and code verbatim and checks this with a regex post-check (reported in `checks`; a lost address/URL is retried once, then returned as 502 and never charged).
 | `/arabic-ocr` | 0.10 USDC (reserved) | Not offered yet; returns 404. |
 | `GET /`, `/openapi.json`, `/.well-known/x402`, `/health` | free | Docs and discovery. |
 

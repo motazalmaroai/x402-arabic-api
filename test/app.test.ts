@@ -18,14 +18,14 @@ describe("402 payment requirements", () => {
     const pr = decodeRequired(res);
     expect(pr.x402Version).toBe(2);
     const a = pr.accepts[0];
-    expect(a).toMatchObject({ scheme: "exact", network: "eip155:84532", amount: "50000", asset: SEPOLIA_USDC, payTo: PAY_TO });
+    expect(a).toMatchObject({ scheme: "exact", network: "eip155:84532", amount: "10000", asset: SEPOLIA_USDC, payTo: PAY_TO });
     expect(pr.extensions?.bazaar).toBeTruthy();
     expect(calls.ai).toBe(0);
   });
-  it("summarize price is 70000 (0.07 USDC); mainnet only via config switch", async () => {
+  it("summarize price is 20000 (0.02 USDC); mainnet only via config switch", async () => {
     const { req } = setup(MAINNET);
     const a = decodeRequired(await req("/summarize-ar", post({ text: "hello" }))).accepts[0];
-    expect(a).toMatchObject({ network: "eip155:8453", amount: "70000", asset: MAINNET_USDC });
+    expect(a).toMatchObject({ network: "eip155:8453", amount: "20000", asset: MAINNET_USDC });
   });
   it("ignores client-supplied payTo/price/network/asset", async () => {
     const { req } = setup();
@@ -33,7 +33,7 @@ describe("402 payment requirements", () => {
     const res = await req("/translate-ar?payTo=" + evil + "&price=1&network=eip155:1",
       post({ text: "hi", payTo: evil, price: "1", amount: "1", network: "eip155:1", asset: evil }, { "x-pay-to": evil, "x-price": "1" }));
     const a = decodeRequired(res).accepts[0];
-    expect(a.payTo).toBe(PAY_TO); expect(a.amount).toBe("50000"); expect(a.network).toBe("eip155:84532"); expect(a.asset).toBe(SEPOLIA_USDC);
+    expect(a.payTo).toBe(PAY_TO); expect(a.amount).toBe("10000"); expect(a.network).toBe("eip155:84532"); expect(a.asset).toBe(SEPOLIA_USDC);
   });
   it("fails closed (503) when PAY_TO unset", async () => {
     const { req } = setup({ PAY_TO: "" });
@@ -112,17 +112,17 @@ describe("free endpoints", () => {
     const { req } = setup();
     const doc = await (await req("/openapi.json")).json();
     await validateOpenApi(doc);
-    for (const p of ["/translate-ar", "/summarize-ar"]) expect(doc.paths[p].post.description).toMatch(/^Use when:/);
+    for (const p of ["/translate-ar", "/summarize-ar", "/dialect-to-msa", "/localize-ar-json", "/try/translate-ar"]) expect(doc.paths[p].post.description).toMatch(/^Use when:/);
   });
   it("health, docs, well-known", async () => {
     const { req } = setup();
     expect((await req("/health")).status).toBe(200);
     expect((await req("/")).status).toBe(200);
     const wk = await (await req("/.well-known/x402")).json();
-    expect(wk.resources).toHaveLength(2);
+    expect(wk.resources).toHaveLength(4);
     const g = await req("/translate-ar");
     expect(g.status).toBe(402);
-    expect(decodeRequired(g).accepts[0].amount).toBe("50000");
+    expect(decodeRequired(g).accepts[0].amount).toBe("10000");
   });
 });
 

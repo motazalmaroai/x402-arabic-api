@@ -65,3 +65,15 @@ npx wrangler deploy --env mainnet             # only after explicit risk-manager
 
 ## Local config
 Tracked `wrangler.toml` has placeholder KV ids. Copy it to the untracked `wrangler.local.toml`, put in your ids (`npx wrangler kv namespace create REDEEM`), and deploy with `npx wrangler deploy -c wrangler.local.toml [--env mainnet]`.
+
+## Workers AI capacity (Free plan, 10,000 neurons/day)
+Paid calls and the free trial share one daily neuron budget kept in the Guard DO (`NEURON_BUDGET`, default 9000, 10% headroom).
+Each request reserves its worst case before the 402 (translate/summarize/dialect 109, localize 589, trial 11) and the unused part is
+refunded from the model's reported token usage. When the budget is spent, paid routes return 503 (before any payment) and the trial returns 429.
+`TRIAL_DAILY_CAP` (default 100, "0" disables `/try/translate-ar`).
+
+**Settlement stop.** `SETTLE_STOP` (default 900): once the cumulative settlement counter shown on `/health`
+(`settlements.payai`) reaches it, every paid route returns `503 settlement_stop` before any 402, and `/health`
+shows `settleStop.stopped: true`. To raise it (e.g. after the facilitator situation is resolved), set a higher
+value in `wrangler.local.toml` under `[env.mainnet.vars]`, e.g. `SETTLE_STOP = "1500"`, and redeploy; to clear the
+stop entirely set `SETTLE_STOP = "0"` (not recommended). The counter itself is never reset by config.

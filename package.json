@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.22",
     "@x402/core": "2.29.0",
     "@x402/evm": "2.29.0",
     "@x402/extensions": "2.29.0",

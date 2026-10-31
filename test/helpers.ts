@@ -12,7 +12,7 @@ export function setup(envOver: Record<string, any> = {}) {
     verify: 0, settle: 0, ai: 0, settleOk: true, aiMode: "ok" as "ok" | "throw" | "empty", order: [] as string[],
     verifyMode: "ok" as "ok" | "invalid" | "throw", settleMode: "ok" as "ok" | "throw" | "nohash",
     receiptMode: "ok" as "ok" | "status0" | "wrongAsset" | "wrongTo" | "wrongAmount" | "wrongFrom" | "noLogs" | "rpcdown" | "firstRpcDown",
-    fixedTx: "" as string, authUsed: true as boolean | "down", kvDown: false, kvPuts: 0, rpc: [] as string[], logs: [] as string[], txSeq: 0,
+    fixedTx: "" as string, lastAmount: "0", authUsed: true as boolean | "down", kvDown: false, kvPuts: 0, rpc: [] as string[], logs: [] as string[], txSeq: 0,
   };
   const fakeKv: any = {
     m: new Map<string, string>(),
@@ -34,7 +34,7 @@ export function setup(envOver: Record<string, any> = {}) {
       return { isValid: true, payer: p.payload.authorization.from };
     },
     async settle(p: any, r: any) {
-      calls.settle++; calls.order.push("settle");
+      calls.settle++; calls.order.push("settle"); calls.lastAmount = String(r.amount);
       if (calls.settleMode === "throw") throw new Error("timeout");
       if (!calls.settleOk) return { success: false, errorReason: "insufficient_funds", transaction: "", network: r.network };
       const tx = calls.settleMode === "nohash" ? "" : calls.fixedTx || "0x" + (++calls.txSeq).toString(16).padStart(64, "a");
@@ -53,7 +53,7 @@ export function setup(envOver: Record<string, any> = {}) {
     const log = {
       address: m === "wrongAsset" ? "0x" + "99".repeat(20) : net.usdc,
       topics: [TRANSFER_TOPIC, pad(m === "wrongFrom" ? "0x" + "77".repeat(20) : "0x2222222222222222222222222222222222222222"), pad(m === "wrongTo" ? "0x" + "88".repeat(20) : env.PAY_TO)],
-      data: "0x" + BigInt(m === "wrongAmount" ? 49999 : 50000).toString(16).padStart(64, "0"),
+      data: "0x" + (BigInt(calls.lastAmount) - (m === "wrongAmount" ? 1n : 0n)).toString(16).padStart(64, "0"),
     };
     return new Response(JSON.stringify({ result: { transactionHash: tx, status: m === "status0" ? "0x0" : "0x1", logs: m === "noLogs" ? [] : [log] } }));
   };

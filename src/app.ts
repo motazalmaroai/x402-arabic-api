@@ -6,12 +6,16 @@ import { declareDiscoveryExtension, bazaarResourceServerExtension } from "@x402/
 import { SafeFacilitator, settleKey, PAYAI_WARN_AT } from "./settlement";
 import {
   type Env, PRICES, MAX_BODY_BYTES, MAX_INPUT_CHARS, DEFAULT_DAILY_CAP, IP_LIMIT_PER_MIN, PAYER_LIMIT_PER_MIN, MODEL, resolveNetwork, paymentConfigError, FACILITATOR_URLS, facilitatorName,
+  LOCALIZE_MAX_BODY_BYTES, WORST_NEURONS, DEFAULT_NEURON_BUDGET, TRIAL_MAX_CHARS, TRIAL_MAX_TOKENS, TRIAL_PER_IP_PER_DAY, DEFAULT_TRIAL_DAILY_CAP, TRIAL_WORST_NEURONS, DEFAULT_SETTLE_STOP,
 } from "./config";
 import type { GuardApi } from "./guard";
-import { translateInput, translateOutput, summarizeInput, summarizeOutput, examples } from "./schemas";
+import { translateInput, translateOutput, summarizeInput, summarizeOutput, dialectInput, dialectOutput, localizeInput, localizeOutput, examples } from "./schemas";
 import { buildOpenApi } from "./openapi";
 import { validatePayment, redeemKey, sha256Hex, REDEEM_TTL_SEC } from "./redeem";
-import { detectDirection, translate, summarize } from "./ai";
+import { detectDirection, translate, summarize, dialectConvert, Meter, DIALECTS } from "./ai";
+import { hardFail } from "./verbatim";
+import { flatten, localize, type Leaf } from "./localize";
+import { GLOSSARIES } from "./glossary";
 
 export interface Payment { mw: (c: any, next: any) => Promise<any>; ready: () => Promise<void>; fac: SafeFacilitator }
 export interface Deps {
@@ -33,32 +37,64 @@ export function buildPayment(env: Env, fac: SafeFacilitator): Payment {
   return { mw, fac, ready: () => (init ??= http.initialize().catch((e: unknown) => { init = undefined; throw e; })) };
 }
 
-type Vars = { input: any; redeem?: { key: string; h: string } };
+type Vars = { input: any; leaves?: Leaf[]; reserved?: number; redeem?: { key: string; h: string } };
 export const REDEEM_NOTE = "If your connection drops after paying, resend the IDENTICAL payment header (same signed payload) to the same endpoint within 1 hour: you get the same stored response with 200 and are not charged again. Any other reuse of a payment returns 409.";
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const PAID = new Set(Object.keys(PRICES));
 const day = () => new Date().toISOString().slice(0, 10);
 const minute = () => Math.floor(Date.now() / 60000);
+const neuronKey = () => `neurons:${day()}`;
+const neuronBudget = (env: Env) => Number(env.NEURON_BUDGET ?? DEFAULT_NEURON_BUDGET);
+const secondsToUtcMidnight = () => { const n = new Date(); return Math.ceil((Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1) - n.getTime()) / 1000); };
+const isStr = (v: unknown, max: number) => typeof v === "string" && v.trim().length > 0 && [...v].length <= max;
+const enumOk = (v: unknown, opts: readonly string[]) => v === undefined || opts.includes(v as string);
+/** Per-route input validation (runs before any 402). */
+export function validateInput(path: string, b: any): { status: number; error: string; detail: string } | null {
+  if (!b || typeof b !== "object" || Array.isArray(b)) return { status: 400, error: "invalid_input", detail: "JSON object body required" };
+  if (path === "/localize-ar-json") return b.json && typeof b.json === "object" && !Array.isArray(b.json) ? null : { status: 400, error: "invalid_input", detail: "json (object) required" };
+  if (typeof b.text !== "string" || !b.text.trim()) return { status: 400, error: "invalid_input", detail: "text (string) required" };
+  if (!isStr(b.text, MAX_INPUT_CHARS)) return { status: 413, error: "payload_too_large", detail: `text max ${MAX_INPUT_CHARS} chars` };
+  if (path === "/translate-ar") {
+    if (!enumOk(b.direction, ["auto", "ar-en", "en-ar"])) return { status: 400, error: "invalid_input", detail: "direction" };
+    if (!enumOk(b.glossary, Object.keys(GLOSSARIES))) return { status: 400, error: "invalid_input", detail: "glossary (supported: web3)" };
+  }
+  if (path === "/summarize-ar" && !enumOk(b.length, ["short", "medium", "long"])) return { status: 400, error: "invalid_input", detail: "length" };
+  if (path === "/dialect-to-msa") {
+    if (!enumOk(b.direction, ["dialect-msa", "msa-dialect"])) return { status: 400, error: "invalid_input", detail: "direction (dialect-msa | msa-dialect)" };
+    if (!enumOk(b.dialect, Object.keys(DIALECTS))) return { status: 400, error: "invalid_input", detail: "dialect (saudi | gulf)" };
+  }
+  return null;
+}
+
+export const TAGS = ["arabic", "gulf", "saudi", "web3", "localization"];
+export const SERVICE_NAME = "x402 Arabic API";
+const COMMON = "Arabic-native, Gulf-dialect aware; keeps 0x addresses, URLs, numbers and code verbatim (regex post-check, retried once; address/URL/number loss is never charged).";
+export const ROUTE_DOCS = {
+  "/translate-ar": { input: translateInput, output: translateOutput, ex: examples.translate,
+    description: `Arabic<->English translation (auto-detects direction; understands Saudi/Gulf dialect input). Optional glossary=web3 enforces a fixed Arabic Web3 terminology list. ${COMMON}` },
+  "/summarize-ar": { input: summarizeInput, output: summarizeOutput, ex: examples.summarize,
+    description: `Faithful Modern Standard Arabic summary (short/medium/long) of Arabic or English text. ${COMMON}` },
+  "/dialect-to-msa": { input: dialectInput, output: dialectOutput, ex: examples.dialect,
+    description: `Converts Saudi/Gulf dialect Arabic to Modern Standard Arabic (فصحى), or MSA to natural Saudi/Gulf dialect (direction param). ${COMMON}` },
+  "/localize-ar-json": { input: localizeInput, output: localizeOutput, ex: examples.localize,
+    description: `Localizes an i18n JSON object to Arabic: keys unchanged; placeholders ({name}, {{count}}, %s, %d, ICU plural/select, HTML tags) kept verbatim and validated per string, retried once, else the source string is returned for that key. Max 200 strings / 8000 chars. ${COMMON}` },
+} as const;
 
 export function buildRoutes(env: Env) {
   const net = resolveNetwork(env);
   const payTo = env.PAY_TO!; // fixed server-side from a Worker var — never from the request
   const price = (amount: string) => ({ amount, asset: net.usdc, extra: { name: net.eip712.name, version: net.eip712.version } });
   const accepts = (amount: string) => ({ scheme: "exact", network: net.caip2, payTo, price: price(amount), maxTimeoutSeconds: 120 });
-  return {
-    "POST /translate-ar": {
-      accepts: accepts(PRICES["/translate-ar"]),
-      description: "Translate Arabic<->English (auto-detects direction). Use when: an agent needs accurate MSA Arabic<->English translation that preserves addresses, numbers and code verbatim. " + REDEEM_NOTE,
-      mimeType: "application/json",
-      extensions: { ...declareDiscoveryExtension({ method: "POST", bodyType: "json", input: examples.translate.req, inputSchema: translateInput, output: { example: examples.translate.res, schema: translateOutput } } as any) },
-    },
-    "POST /summarize-ar": {
-      accepts: accepts(PRICES["/summarize-ar"]),
-      description: "Summarize Arabic or English text into Modern Standard Arabic (short/medium/long). Use when: an agent needs an Arabic summary of a document or article. " + REDEEM_NOTE,
-      mimeType: "application/json",
-      extensions: { ...declareDiscoveryExtension({ method: "POST", bodyType: "json", input: examples.summarize.req, inputSchema: summarizeInput, output: { example: examples.summarize.res, schema: summarizeOutput } } as any) },
-    },
-  } as any;
+  const r: any = {};
+  for (const [path, d] of Object.entries(ROUTE_DOCS)) {
+    r[`POST ${path}`] = {
+      accepts: accepts((PRICES as any)[path]),
+      description: d.description + " " + REDEEM_NOTE,
+      mimeType: "application/json", serviceName: SERVICE_NAME, tags: TAGS,
+      extensions: { ...declareDiscoveryExtension({ method: "POST", bodyType: "json", input: d.ex.req, inputSchema: d.input, output: { example: d.ex.res, schema: d.output } } as any) },
+    };
+  }
+  return r;
 }
 
 export function buildAllRoutes(env: Env) {
@@ -80,6 +116,10 @@ export function readPaymentIdentity(header: string): { from: string; nonce: stri
   } catch { return null; }
 }
 
+export const LOCALIZE_MAX_FALLBACK = 0.2;
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#0f766e"/><text x="16" y="23" font-size="20" text-anchor="middle" fill="#fff" font-family="sans-serif">ع</text></svg>`;
+export const settleStop = (env: Env) => { const v = Number(env.SETTLE_STOP ?? DEFAULT_SETTLE_STOP); return Number.isFinite(v) && v >= 0 ? v : DEFAULT_SETTLE_STOP; };
+
 export function createApp(deps: Deps) {
   const app = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -89,8 +129,11 @@ export function createApp(deps: Deps) {
     let settled: number | null = null;
     try { settled = await deps.guard(c.env).count(settleKey(name)); } catch { /* stats are best-effort */ }
     return c.json({ ok: true, network: resolveNetwork(c.env).caip2, payToConfigured: ADDR.test(c.env.PAY_TO ?? ""), paidRoutes: err ? `disabled: ${err}` : "enabled",
-      facilitator: name, scheme: "exact", settlements: { [name]: settled }, ...(name === "payai" ? { payaiWarnAt: PAYAI_WARN_AT } : {}) });
+      facilitator: name, scheme: "exact", settlements: { [name]: settled }, ...(name === "payai" ? { payaiWarnAt: PAYAI_WARN_AT } : {}),
+      settleStop: { at: settleStop(c.env) || null, stopped: settleStop(c.env) > 0 && (settled === null || settled >= settleStop(c.env)) } });
   });
+  // Tiny inline SVG favicon: free, unprotected, never touches the guard or payments.
+  app.get("/favicon.ico", (c) => c.body(FAVICON, 200, { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" }));
   const oaCache = new Map<string, string>();
   app.get("/openapi.json", (c) => {
     const origin = new URL(c.req.url).origin; const k = `${origin}|${c.env.X402_NETWORK}`;
@@ -102,8 +145,10 @@ export function createApp(deps: Deps) {
     return c.json({
       note: "Informational manifest (not a normative x402 spec file). Authoritative terms are in each endpoint's 402 PAYMENT-REQUIRED response.",
       version: 1, x402Version: 2, openapi: `${origin}/openapi.json`,
+      serviceName: SERVICE_NAME, tags: TAGS,
       resources: Object.keys(PRICES).map((p) => `${origin}${p}`),
-      pricing: Object.entries(PRICES).map(([p, amount]) => ({ resource: `${origin}${p}`, method: "POST", scheme: "exact", network: net.caip2, asset: net.usdc, amount, decimals: 6, payTo: ADDR.test(c.env.PAY_TO ?? "") ? c.env.PAY_TO : null })),
+      pricing: Object.entries(PRICES).map(([p, amount]) => ({ resource: `${origin}${p}`, method: "POST", scheme: "exact", network: net.caip2, asset: net.usdc, amount, decimals: 6, usd: (Number(amount) / 1e6).toFixed(2), payTo: ADDR.test(c.env.PAY_TO ?? "") ? c.env.PAY_TO : null, description: (ROUTE_DOCS as any)[p].description })),
+      free: [{ resource: `${origin}/try/translate-ar`, method: "POST", description: `Free trial translation: <= ${TRIAL_MAX_CHARS} chars, ${TRIAL_PER_IP_PER_DAY}/IP/day, global daily cap; 429 above limits.` }],
     });
   });
 
@@ -112,6 +157,12 @@ export function createApp(deps: Deps) {
     if (!PAID.has(c.req.path)) return next();
     const cfgErr = paymentConfigError(c.env);
     if (cfgErr) return c.json({ error: "payments_not_configured", detail: cfgErr }, 503);
+    // Settlement stop (risk manager): at SETTLE_STOP cumulative settlements, refuse BEFORE any 402. Fails closed.
+    const stop = settleStop(c.env);
+    if (stop > 0) {
+      let n: number; try { n = await deps.guard(c.env).count(settleKey(facilitatorName(c.env.FACILITATOR))); } catch { n = Infinity; }
+      if (n >= stop) return c.json({ error: "settlement_stop", detail: `settlement limit reached (${stop}); paid routes paused by the operator` }, 503, { "retry-after": "86400" });
+    }
     // GET/HEAD probes (directories/indexers) get the 402 challenge; the GET handler is always 405 so nothing settles.
     if (c.req.method === "GET" || c.req.method === "HEAD") {
       const ip = c.req.header("cf-connecting-ip") ?? "unknown";
@@ -120,14 +171,21 @@ export function createApp(deps: Deps) {
     }
     if (c.req.method !== "POST") return c.json({ error: "method_not_allowed" }, 405);
 
+    const maxBytes = c.req.path === "/localize-ar-json" ? LOCALIZE_MAX_BODY_BYTES : MAX_BODY_BYTES;
     const len = Number(c.req.header("content-length") ?? 0);
-    if (len > MAX_BODY_BYTES) return c.json({ error: "payload_too_large", detail: `max ${MAX_BODY_BYTES} bytes` }, 413);
+    if (len > maxBytes) return c.json({ error: "payload_too_large", detail: `max ${maxBytes} bytes` }, 413);
     const raw = await c.req.text();
-    if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return c.json({ error: "payload_too_large", detail: `max ${MAX_BODY_BYTES} bytes` }, 413);
+    if (new TextEncoder().encode(raw).length > maxBytes) return c.json({ error: "payload_too_large", detail: `max ${maxBytes} bytes` }, 413);
     let body: any;
     try { body = JSON.parse(raw); } catch { return c.json({ error: "invalid_json" }, 400); }
-    if (typeof body?.text !== "string" || !body.text.trim()) return c.json({ error: "invalid_input", detail: "text (string) required" }, 400);
-    if ([...body.text].length > MAX_INPUT_CHARS) return c.json({ error: "payload_too_large", detail: `text max ${MAX_INPUT_CHARS} chars` }, 413);
+    // Input validation BEFORE any 402, so nobody is asked to pay for a request we would reject.
+    const bad = validateInput(c.req.path, body);
+    if (bad) return c.json({ error: bad.error, detail: bad.detail }, bad.status as any);
+    if (c.req.path === "/localize-ar-json") {
+      const f = flatten(body.json);
+      if ("error" in f) return c.json({ error: f.error.startsWith("max") ? "payload_too_large" : "invalid_input", detail: f.error }, f.error.startsWith("max") ? 413 : 400);
+      c.set("leaves", f.leaves);
+    }
     c.set("input", body);
 
     const ip = c.req.header("cf-connecting-ip") ?? "unknown";
@@ -146,13 +204,16 @@ export function createApp(deps: Deps) {
       c.set("redeem", rk);
     }
     // One Durable Object round-trip for IP rate, cap peek, payer rate and replay claim.
+    const worst = WORST_NEURONS[c.req.path];
     const r = await deps.guard(c.env).admit({
       ip: { key: `ip:${ip}:${minute()}`, limit: IP_LIMIT_PER_MIN },
       cap: { key: `cap:${day()}`, limit: Number(c.env.DAILY_CAP ?? DEFAULT_DAILY_CAP), take: !!id },
+      budget: { key: neuronKey(), n: worst, limit: neuronBudget(c.env) },
       ...(id ? { payer: { key: `payer:${id.from}:${minute()}`, limit: PAYER_LIMIT_PER_MIN }, nonce: { key: `nonce:${net}:${id.from}:${id.nonce}`, ttlSec: 30 * 86400 } } : {}),
     });
     if (r === "ip") return c.json({ error: "rate_limited_ip" }, 429);
-    if (r === "cap") return c.json({ error: "daily_capacity_reached", detail: "try again after 00:00 UTC" }, 503);
+    if (r === "cap" || r === "budget") return c.json({ error: "daily_capacity_reached", detail: "try again after 00:00 UTC" }, 503);
+    if (id) c.set("reserved", worst);
     if (r === "payer") return c.json({ error: "rate_limited_payer" }, 429);
     if (r === "replay") return redeem(c, id!, rk!);
     return next();
@@ -201,23 +262,88 @@ export function createApp(deps: Deps) {
     return c.body(body, 200, { "content-type": "application/json" });
   }
 
+  /** Return the unused part of this request's neuron reservation (actual usage from the model's reported tokens). */
+  async function refund(c: Context<{ Bindings: Env; Variables: Vars }>, m: Meter, reserved = c.get("reserved") ?? 0) {
+    const back = Math.floor(reserved - Math.ceil(m.used));
+    if (back > 0) { try { await deps.guard(c.env).addN(neuronKey(), -back, 0, 2 * 86400); } catch { /* best effort: keeps the conservative reservation */ } }
+  }
+  /** Run a generator under the meter; model failure/empty output/address loss => 5xx => middleware does not settle. */
+  async function gen<T extends { text: string; checks: any }>(c: Context<{ Bindings: Env; Variables: Vars }>, m: Meter, f: () => Promise<T>) {
+    let r: T;
+    try { r = await f(); } catch { await refund(c, m); return { err: c.json({ error: "model_error" }, 502) }; }
+    await refund(c, m);
+    if (!r.text?.trim()) return { err: c.json({ error: "model_empty_output" }, 502) };
+    if (hardFail(r.checks.verbatim)) return { err: c.json({ error: "verbatim_check_failed", detail: "the model altered a 0x address, URL or number twice; not charged", checks: r.checks }, 502) };
+    return { r };
+  }
+
   app.post("/translate-ar", async (c) => {
-    const { text, direction = "auto" } = c.get("input");
-    if (!["auto", "ar-en", "en-ar"].includes(direction)) return c.json({ error: "invalid_input", detail: "direction" }, 400);
+    const { text, direction = "auto", glossary } = c.get("input");
     const dir = direction === "auto" ? detectDirection(text) : direction;
-    let out: string;
-    try { out = await translate(c.env.AI, text, dir); } catch { return c.json({ error: "model_error" }, 502); } // 5xx => no settle
-    if (!out?.trim()) return c.json({ error: "model_empty_output" }, 502);           // 5xx => no settle
-    return paidJson(c, { translation: out, direction: dir, model: MODEL });
+    const m = new Meter();
+    const g = await gen(c, m, () => translate(c.env.AI, text, dir, m, { glossary }));
+    if (g.err) return g.err;
+    return paidJson(c, { translation: g.r!.text, direction: dir, model: MODEL, checks: g.r!.checks });
   });
 
   app.post("/summarize-ar", async (c) => {
     const { text, length = "medium" } = c.get("input");
-    if (!["short", "medium", "long"].includes(length)) return c.json({ error: "invalid_input", detail: "length" }, 400);
-    let out: string;
-    try { out = await summarize(c.env.AI, text, length); } catch { return c.json({ error: "model_error" }, 502); } // 5xx => no settle
-    if (!out?.trim()) return c.json({ error: "model_empty_output" }, 502);           // 5xx => no settle
-    return paidJson(c, { summary: out, length, model: MODEL });
+    const m = new Meter();
+    const g = await gen(c, m, () => summarize(c.env.AI, text, length, m));
+    if (g.err) return g.err;
+    return paidJson(c, { summary: g.r!.text, length, model: MODEL, checks: g.r!.checks });
+  });
+
+  app.post("/dialect-to-msa", async (c) => {
+    const { text, direction = "dialect-msa", dialect = "saudi" } = c.get("input");
+    const m = new Meter();
+    const g = await gen(c, m, () => dialectConvert(c.env.AI, text, direction, dialect, m));
+    if (g.err) return g.err;
+    return paidJson(c, { text: g.r!.text, direction, dialect, model: MODEL, checks: g.r!.checks });
+  });
+
+  app.post("/localize-ar-json", async (c) => {
+    const { json } = c.get("input"); const leaves = c.get("leaves")!;
+    const m = new Meter();
+    let r: Awaited<ReturnType<typeof localize>>;
+    try { r = await localize(c.env.AI, json, leaves, m); } catch { await refund(c, m); return c.json({ error: "model_error" }, 502); }
+    await refund(c, m);
+    // More than 20% of strings fell back to the source => 502 => not charged.
+    const ratio = r.total ? r.fallbackKeys.length / r.total : 1;
+    if (r.localized === 0 || ratio > LOCALIZE_MAX_FALLBACK)
+      return c.json({ error: r.modelErrors && r.localized === 0 ? "model_error" : "localization_failed",
+        detail: `${r.fallbackKeys.length}/${r.total} strings failed validation (max ${LOCALIZE_MAX_FALLBACK * 100}%); not charged`, checks: { fallbackKeys: r.fallbackKeys } }, 502);
+    return paidJson(c, { json: r.json, localized: r.localized, total: r.total, model: MODEL,
+      checks: { fallbackKeys: r.fallbackKeys, fallbackRatio: Math.round(ratio * 1000) / 1000, retried: r.retried } });
+  });
+
+  // ---- Free trial (no payment): short translations only, per-IP/day + global/day + shared neuron budget (Guard DO). ----
+  app.all("/try/translate-ar", async (c) => {
+    if (c.req.method !== "POST") return c.json({ error: "method_not_allowed", detail: "use POST" }, 405);
+    const trialCap = Number(c.env.TRIAL_DAILY_CAP ?? DEFAULT_TRIAL_DAILY_CAP);
+    if (!(trialCap > 0)) return c.json({ error: "trial_disabled" }, 404);
+    const raw = await c.req.text();
+    if (new TextEncoder().encode(raw).length > 4096) return c.json({ error: "payload_too_large", detail: "max 4096 bytes" }, 413);
+    let body: any; try { body = JSON.parse(raw); } catch { return c.json({ error: "invalid_json" }, 400); }
+    const { text, direction = "auto" } = body ?? {};
+    if (typeof text !== "string" || !text.trim()) return c.json({ error: "invalid_input", detail: "text (string) required" }, 400);
+    if ([...text].length > TRIAL_MAX_CHARS) return c.json({ error: "payload_too_large", detail: `trial text max ${TRIAL_MAX_CHARS} chars; use paid POST /translate-ar for up to ${MAX_INPUT_CHARS}` }, 413);
+    if (!["auto", "ar-en", "en-ar"].includes(direction)) return c.json({ error: "invalid_input", detail: "direction" }, 400);
+    const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+    const r = await deps.guard(c.env).trial({
+      ip: { key: `trial:ip:${ip}:${day()}`, limit: TRIAL_PER_IP_PER_DAY },
+      cap: { key: `trial:cap:${day()}`, limit: trialCap },
+      budget: { key: neuronKey(), n: TRIAL_WORST_NEURONS, limit: neuronBudget(c.env) },
+    });
+    if (r !== "ok") return c.json({ error: r === "ip" ? "trial_limit_ip" : "trial_daily_cap", detail: r === "ip" ? `${TRIAL_PER_IP_PER_DAY} free calls per IP per UTC day` : "free trial capacity for today is used up", paid: "POST /translate-ar" }, 429, { "retry-after": String(secondsToUtcMidnight()) });
+    c.set("reserved", TRIAL_WORST_NEURONS);
+    const dir = direction === "auto" ? detectDirection(text) : direction;
+    const m = new Meter();
+    let out: Awaited<ReturnType<typeof translate>>;
+    try { out = await translate(c.env.AI, text, dir, m, { maxTokens: TRIAL_MAX_TOKENS, retry: false }); } catch { await refund(c, m); return c.json({ error: "model_error" }, 502); }
+    await refund(c, m);
+    if (!out.text?.trim()) return c.json({ error: "model_empty_output" }, 502);
+    return c.json({ translation: out.text, direction: dir, model: MODEL, trial: true, checks: out.checks, paid: "POST /translate-ar (x402, 0.01 USDC) for up to 4000 chars and glossary=web3" });
   });
 
   for (const p of PAID) app.get(p, (c) => c.json({ error: "method_not_allowed", detail: "use POST" }, 405));
@@ -242,7 +368,11 @@ function docsHtml(env: Env) {
   const net = resolveNetwork(env);
   return `<!doctype html><meta charset="utf-8"><title>x402 Arabic API</title><body style="font-family:sans-serif;max-width:720px;margin:2em auto">
 <h1>x402 Arabic API</h1><p>Pay-per-request Arabic translation & summarization for AI agents. Payment: x402 <code>exact</code>, USDC on <code>${net.caip2}</code> (asset <code>${net.usdc}</code>).</p>
-<ul><li><b>POST /translate-ar</b> — 0.05 USDC. Body <code>{"text":"…","direction":"auto|ar-en|en-ar"}</code></li>
-<li><b>POST /summarize-ar</b> — 0.07 USDC. Body <code>{"text":"…","length":"short|medium|long"}</code></li></ul>
+<p>Arabic-native, Gulf-dialect aware; keeps 0x addresses, URLs and numbers verbatim.</p>
+<ul><li><b>POST /translate-ar</b> — 0.01 USDC. Body <code>{"text":"…","direction":"auto|ar-en|en-ar","glossary":"web3"?}</code></li>
+<li><b>POST /summarize-ar</b> — 0.02 USDC. Body <code>{"text":"…","length":"short|medium|long"}</code></li>
+<li><b>POST /dialect-to-msa</b> — 0.01 USDC. Body <code>{"text":"…","direction":"dialect-msa|msa-dialect","dialect":"saudi|gulf"}</code></li>
+<li><b>POST /localize-ar-json</b> — 0.02 USDC. Body <code>{"json":{…i18n…}}</code> (≤200 strings, ≤8000 chars)</li>
+<li><b>POST /try/translate-ar</b> — free trial, ≤${TRIAL_MAX_CHARS} chars, ${TRIAL_PER_IP_PER_DAY}/IP/day.</li></ul>
 <p>Unpaid requests get <code>402</code> with a <code>PAYMENT-REQUIRED</code> header. Max ${MAX_INPUT_CHARS} chars. Free: <a href="/openapi.json">/openapi.json</a>, <a href="/.well-known/x402">/.well-known/x402</a>, <a href="/health">/health</a>.</p></body>`;
 }
